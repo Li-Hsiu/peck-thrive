@@ -1,0 +1,10 @@
+Sep 20: Create a basic scene and load in gltf model
+Sep 27: Work out the rotation of the bird and flying control using quaternion
+Sep 28: Implement the chunkManager
+Oct 17: Implement reusable trees and generation of a random endless forest
+Oct 18: Introduced physics into the scene
+Oct 19: Build hitbox for tree1
+
+把模型存着 把碰撞体积重新构建
+treelist存的是object
+treeObjectPool存的是model

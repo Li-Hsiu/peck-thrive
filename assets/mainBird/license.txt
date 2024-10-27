@@ -1,0 +1,11 @@
+Model Information:
+* title:	low poly bird
+* source:	https://sketchfab.com/3d-models/low-poly-bird-7a0d16af3b9749018f32f698ecb0169d
+* author:	Kyyy_24 (https://sketchfab.com/luckyardrianto27)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "low poly bird" (https://sketchfab.com/3d-models/low-poly-bird-7a0d16af3b9749018f32f698ecb0169d) by Kyyy_24 (https://sketchfab.com/luckyardrianto27) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
