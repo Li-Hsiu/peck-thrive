@@ -6,6 +6,9 @@ const Woodpecker = function(camera, scene) {
     this.camera = camera;
     this.scene = scene;
 
+    this.health = 100;
+    this.maxHealth = 100;
+
     // load woodpecker model
     const birdGeometry = new THREE.SphereGeometry(0.25, 32, 32);
     let birdMaterial = Physijs.createMaterial(
@@ -15,8 +18,8 @@ const Woodpecker = function(camera, scene) {
     );
     this.bird = new Physijs.SphereMesh(birdGeometry, birdMaterial);
     this.bird.position.set(0, 15, 0);
-    this.bird.setCcdMotionThreshold(30);
-    this.bird.setCcdSweptSphereRadius(0.2);
+    //this.bird.setCcdMotionThreshold(30);
+    //this.bird.setCcdSweptSphereRadius(0.2);
     //this.bird.add(new THREE.AxesHelper(20));
     this.bird.add(camera);
     scene.add(this.bird);
@@ -47,6 +50,7 @@ const Woodpecker = function(camera, scene) {
     this.speed = 0;
     this.yawSpeed = 1.25;
     this.pitchSpeed = 1.25;
+
     this.yaw = 0.0;
     this.pitch = 0.0;
     this.yawQuaternion = new THREE.Quaternion();
@@ -74,6 +78,8 @@ const Woodpecker = function(camera, scene) {
 
     this.sequence = [];
     this.keys = [];
+
+    this.reduceHealthCooldown = new Date().getTime();
 }
 
 Woodpecker.prototype.update = function(a, d, w, s, space, deltaTime) {
@@ -87,7 +93,7 @@ Woodpecker.prototype.update = function(a, d, w, s, space, deltaTime) {
         if (d) this.yaw -= this.yawSpeed * deltaTime;
         if (w) this.pitch += this.pitchSpeed * deltaTime;
         if (s) this.pitch -= this.pitchSpeed * deltaTime;
-        if (space) this.pitch = 0;
+        //if (space) this.pitch = 0;
 
         //this.pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.pitch));
 
@@ -125,6 +131,11 @@ Woodpecker.prototype.update = function(a, d, w, s, space, deltaTime) {
             this.playPeckGame(a, d, w, s);
         }
     }
+    if (new Date().getTime() - this.reduceHealthCooldown > 10000) {
+        this.takeDamage(10);
+        this.reduceHealthCooldown = new Date().getTime();
+    }
+
     if (this.returnMessage) {
         const message = this.returnMessage;
         this.returnMessage = null;
@@ -195,7 +206,7 @@ Woodpecker.prototype.interpolate = function() {
             this.exitPecking = false;
             this.isFlying = true;
             this.isPecking = false;
-            const currentEuler = new THREE.Euler().setFromQuaternion(this.bird.quaternion, 'XYZ');
+            const currentEuler = new THREE.Euler().setFromQuaternion(this.bird.quaternion, 'YXZ');
             this.yaw = currentEuler.y;
             this.pitch = 0;
             this.speed = 0;
@@ -248,7 +259,6 @@ Woodpecker.prototype.generateKeySequence = function() {
     const keys = ['W', 'A', 'S', 'D'];
     this.sequence = [];
     const n = Math.floor(Math.random() * (20 - 10 + 1)) + 10;
-    //this.intervals = [];
 
     for (let i = 0; i < n; i++) {
         const randomKey = keys[Math.floor(Math.random() * keys.length)];
@@ -297,7 +307,10 @@ Woodpecker.prototype.playPeckGame = function(a,d,w,s) {
             } 
             break;
     }
-    if (this.sequence.length == 0) this.exitPeckGame();
+    if (this.sequence.length == 0) {
+        this.takeDamage(-20);
+        this.exitPeckGame();
+    }
 }
 
 Woodpecker.prototype.exitPeckGame = function() {
@@ -313,6 +326,17 @@ Woodpecker.prototype.exitPeckGame = function() {
     this.isInterpolating = true;
     this.startTime = new Date().getTime();
     this.exitPecking = true;
+}
+
+Woodpecker.prototype.updateHealthBar = function() {
+    const healthBar = document.getElementById('health-bar');
+    const healthPercentage = this.health / this.maxHealth * 100;
+    healthBar.style.width = healthPercentage + '%';
+}
+
+Woodpecker.prototype.takeDamage = function(amount) {
+    this.health = Math.max(0, this.health - amount);
+    this.updateHealthBar();
 }
 
 export{Woodpecker};

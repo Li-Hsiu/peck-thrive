@@ -6,7 +6,7 @@ import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 Physijs.scripts.worker = 'physijs_worker.js';
 Physijs.scripts.ammo = 'ammo.js';
 
-var scene, renderer, camera, controls, ambientLight, directionalLight, ground, bird, keys;
+var scene, renderer, camera, controls, points, points2, geo1, geo2, objList, ambientLight, directionalLight, ground, bird, boss, keys, mixer, mixer2, raycaster, raycaster2, intersectPoint;
 
 function initKeys() {
     keys = {
@@ -84,6 +84,7 @@ function init() {
     scene.add(bird);
     gltfLoader.load('./assets/bird/scene.gltf', (gltf) => {
         let birdModel = gltf.scene;
+        mixer2 = new THREE.AnimationMixer(birdModel);
         birdModel.traverse((child) => {
             if (child.isMesh) {
                 child.castShadow = true;
@@ -94,9 +95,64 @@ function init() {
         birdModel.rotateY(Math.PI);
         birdModel.scale.set(0.7, 0.7, 0.7);
         bird.add(birdModel);
+
+        gltf.animations.forEach((clip) => {
+            mixer2.clipAction(clip).play();
+            mixer2.timeScale = 3;
+        });
     });
 
+    raycaster = new THREE.Raycaster();
+    raycaster2 = new THREE.Raycaster();
+
+    intersectPoint = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 32), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+    scene.add(intersectPoint);
+
+    const sphereGeometry2 = new THREE.SphereGeometry(1.0, 32, 32);
+    boss = new Physijs.SphereMesh(sphereGeometry2, material);
+    boss.position.set(5, 15, 0);
+    boss.add(new THREE.AxesHelper(20));
+    scene.add(boss);
+    gltfLoader.load('./assets/boss/scene.gltf', (gltf) => {
+        let bossModel = gltf.scene;
+        mixer = new THREE.AnimationMixer(bossModel);
+        bossModel.traverse((child) => {
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
+        });
+        bossModel.rotateY(Math.PI);
+        bossModel.scale.set(2.5, 2.5, 2.5);
+        boss.add(bossModel);
+
+        gltf.animations.forEach((clip) => {
+            mixer.clipAction(clip).play();
+            mixer.timeScale = 3;
+        });
+    });
+
+    objList = [];
+    let direction = bird.position.clone().sub(boss.position).normalize();
+    raycaster.set(boss.position, direction);
+
+    points = [];
+    points.push(boss.position.clone());
+    points.push(boss.position.clone().add(direction.clone().multiplyScalar(20)));
+    geo1 = new THREE.BufferGeometry().setFromPoints(points);
+    const rayLine = new THREE.Line(geo1, new THREE.LineBasicMaterial({ color: 0xff0000 }));
+    scene.add(rayLine);
+
+    let direction2 = direction.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 36);
+    points2 = [];
+    points2.push(boss.position.clone());
+    points2.push(boss.position.clone().add(direction2.clone().multiplyScalar(20)));
+    geo2 = new THREE.BufferGeometry().setFromPoints(points2);
+    const rayLine2 = new THREE.Line(geo2, new THREE.LineBasicMaterial({ color: 0xff0000 }));
+    scene.add(rayLine2);
+
     // create tree
+    {
     var tree = new Physijs.BoxMesh(new THREE.BoxGeometry(2, 2, 2), material, 0);
     tree.position.set(0, -0.5, -15);
 
@@ -191,6 +247,8 @@ function init() {
         tree.add(fbx);
     });
     scene.add(tree);
+    objList.push(tree);
+    }
 
     window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
@@ -223,7 +281,8 @@ function animate() {
     lastTime = currentTime;
 
     if (isRunning) {
-
+        if (mixer) mixer.update(deltaTime);
+        if (mixer2) mixer2.update(deltaTime);
         // Set rotation based on deltaTime
         if (keys.a) yaw += rotationSpeed * deltaTime;
         if (keys.d) yaw -= rotationSpeed * deltaTime;
@@ -236,8 +295,7 @@ function animate() {
         if (new Date().getTime()-collisionRecoilStartTime > 500) { 
             if (speed < maxSpeed) speed += maxSpeed * deltaTime;
             else speed = maxSpeed;
-            console.log(speed);
-            bird.position.add(bird.getWorldDirection(new THREE.Vector3()).multiplyScalar(-1*speed * deltaTime));
+            if (keys.space) bird.position.add(bird.getWorldDirection(new THREE.Vector3()).multiplyScalar(-1*speed * deltaTime));
             bird.__dirtyPosition = true;
             bird.material.color.set('#00FF00');
         }
@@ -247,6 +305,33 @@ function animate() {
             bird.material.color.set('#FF0000');
         }
         
+
+
+        let direction = bird.position.clone().sub(boss.position).normalize();
+        raycaster.set(boss.position, direction);
+        const intersects = raycaster.intersectObjects(objList, true);
+        
+        points[0].copy(boss.position.clone());
+        points[1].copy(boss.position.clone().add(direction.clone().multiplyScalar(200)));
+        geo1.setFromPoints(points);
+
+        if (intersects.length > 0) {
+            console.log(intersects[0].point)
+            intersectPoint.position.copy(intersects[0].point);
+        }
+        else {
+            intersectPoint.position.copy(new THREE.Vector3(0,0,0));
+            console.log("No Obstacles")
+        }
+
+        let direction2 = direction.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 36);
+        raycaster2.set(boss.position, direction2);
+        
+        points2[0].copy(boss.position.clone());
+        points2[1].copy(boss.position.clone().add(direction2.clone().multiplyScalar(200)));
+        geo2.setFromPoints(points2);
+
+
         scene.simulate(); 
         renderer.render(scene, camera);
     }

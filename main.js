@@ -1,11 +1,12 @@
 import * as THREE from 'three';
 import { Woodpecker } from './woodpeckerController.js';
+import { Hawk } from './hawkController.js';
 import { ChunkManager } from './chunkManager.js';
 
 Physijs.scripts.worker = 'physijs_worker.js';
 Physijs.scripts.ammo = 'ammo.js';
 
-var scene, renderer, camera, ambientLight, directionalLight, keys, woodpecker, chunkManager, lastTime, isRunning = true, isSimulationPaused = false;
+var scene, renderer, camera, ambientLight, directionalLight, keys, woodpecker, hawk, chunkManager, lastTime, isRunning = true, isSimulationPaused = false;
 
 function initKeys() {
     keys = {
@@ -74,6 +75,8 @@ function init() {
     woodpecker = new Woodpecker(camera, scene);
     chunkManager = new ChunkManager(scene, new THREE.Vector3(0, 50, 0));
 
+    hawk = new Hawk(scene, woodpecker);
+
     initKeys();
     window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
@@ -101,6 +104,7 @@ function init() {
         else {
             woodpecker.collisionRecoilStartTime = new Date().getTime();
             woodpecker.onCollision = true;
+            woodpecker.takeDamage(10);
             woodpecker.bounceDirection = woodpecker.bird.getWorldDirection(new THREE.Vector3()).multiplyScalar(woodpecker.speed/4);
         }
         
@@ -131,7 +135,15 @@ function animate() {
 
             chunkManager.update(woodpecker.bird.position);
 
+            if (hawk && hawk.boss) {
+                hawk.update(deltaTime, chunkManager);
+            }
+
+            if (woodpecker.health <= 0) {
+                isRunning = false;
+            }
         }
+
         if (!isSimulationPaused) {
             scene.simulate();
         }

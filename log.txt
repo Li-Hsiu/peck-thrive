@@ -8,3 +8,11 @@ Oct 19: Build hitbox for tree1
 把模型存着 把碰撞体积重新构建
 treelist存的是object
 treeObjectPool存的是model
+
+
+todo:
+饥饿条
+啄木头出错 惩罚
+死亡结算
+啄木头动画
+加速

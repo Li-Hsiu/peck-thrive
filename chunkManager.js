@@ -23,7 +23,7 @@ class Chunk {
     // load the chunk
     load(scene, treeObjectPool) {
         // create ground
-        this.ground = new Physijs.BoxMesh(new THREE.BoxGeometry( this.chunkSize, 1, this.chunkSize ), new THREE.MeshStandardMaterial({color: 0x2E6F40 }), 0); // color: colors[Math.floor(Math.random() * 10)]
+        this.ground = new Physijs.BoxMesh(new THREE.BoxGeometry( this.chunkSize, 10, this.chunkSize ), new THREE.MeshStandardMaterial({color: 0x2E6F40 }), 0); // color: colors[Math.floor(Math.random() * 10)]
         this.ground.castShadow = true;
         this.ground.receiveShadow = true;
         this.ground.position.set(this.xCoord, -1, this.zCoord);

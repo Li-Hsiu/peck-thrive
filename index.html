@@ -46,41 +46,22 @@
 			font-family: Arial, sans-serif;
 			font-size: 20px;
 		}
-		.label2 {
-			position: absolute;
-			top: 85px;
-			left: 5px;
-			color: #fff;
-			padding: 20px 40px;
-			font-family: Arial, sans-serif;
-			font-size: 20px;
+		#health-bar-container {
+			position: fixed;
+			top: 20px; 
+			left: 20px; 
+			width: 600px;
+			height: 50px;
+			background-color: #555;
+			border-radius: 5px;
+			overflow: hidden;
 		}
-		.label3 {
-			position: absolute;
-			top: 110px;
-			left: 5px;
-			color: #fff;
-			padding: 20px 40px;
-			font-family: Arial, sans-serif;
-			font-size: 20px;
-		}
-		.label4 {
-			position: absolute;
-			top: 135px;
-			left: 5px;
-			color: #fff;
-			padding: 20px 40px;
-			font-family: Arial, sans-serif;
-			font-size: 20px;
-		}
-		.label5 {
-			position: absolute;
-			top: 160px;
-			left: 5px;
-			color: #fff;
-			padding: 20px 40px;
-			font-family: Arial, sans-serif;
-			font-size: 20px;
+
+		#health-bar {
+			height: 100%;
+			width: 100%;
+			background-color: #fff;
+			transition: width 0.3s ease;
 		}
 	</style>
 	<script type="importmap">
@@ -102,6 +83,9 @@
 	<div id="container">
 		<div id="ui-container">
 			<!--<div class="label1">Coord</div>-->
+			<div id="health-bar-container">
+				<div id="health-bar"></div>
+			</div>
 		</div>
 	</div>
 </body>
