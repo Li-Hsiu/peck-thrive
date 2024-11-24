@@ -6,6 +6,8 @@ const Hawk = function(scene, bird, loadingManager) {
     this.scene = scene;
     this.bird = bird;
 
+    this.soundInitialized = false;
+
     this.boss = new THREE.Mesh(new THREE.SphereGeometry(1.0, 32, 32), new THREE.MeshBasicMaterial({ color: 0xff0000, opacity: 0.0, transparent:true }));
     this.boss.position.set(100, 12, 0);
     const gltfLoader = new GLTFLoader(loadingManager); 
@@ -53,7 +55,20 @@ const Hawk = function(scene, bird, loadingManager) {
 
 }
 
-Hawk.prototype.update = function(deltaTime, chunkManager) {
+Hawk.prototype.update = function(deltaTime, chunkManager, listener) {
+    if (!this.soundInitialized) {
+        this.sound = new THREE.PositionalAudio(listener);
+        const audioLoader = new THREE.AudioLoader();
+        audioLoader.load('./assets/wing-flap.mp3', (buffer) => {
+            this.sound.setBuffer(buffer);
+            this.sound.setRefDistance(20); 
+            this.sound.setLoop(true);
+            this.sound.autoplay = false; 
+            this.sound.pause();
+        });
+        this.boss.add(this.sound);
+        this.soundInitialized = true;
+    }
     if (this.boss && this.bird.bird) {
         if (this.mixer) this.mixer.update(deltaTime);
 
@@ -106,7 +121,14 @@ Hawk.prototype.update = function(deltaTime, chunkManager) {
 
         this.updateRotation(deltaTime, isDirect);
 
-        this.boss.position.add(this.boss.getWorldDirection(new THREE.Vector3()).multiplyScalar( this.speed * deltaTime));
+        if (this.boss.position.distanceTo(this.bird.bird.position) > 200) {
+            this.sound.pause();
+            this.boss.position.add(this.boss.getWorldDirection(new THREE.Vector3()).multiplyScalar( this.speed * 1.25 * deltaTime));
+        }
+        else {
+            if (!this.sound.isPlaying) this.sound.play();
+            this.boss.position.add(this.boss.getWorldDirection(new THREE.Vector3()).multiplyScalar( this.speed * deltaTime));
+        }
     } 
 
 }
@@ -147,16 +169,16 @@ Hawk.prototype.levelAdjust = function(levelStage) {
             this.speed = 10;
             break;
         case 1:
-            this.speed = 12.5;
+            this.speed = 12;
             break;
         case 2:
-            this.speed = 15;
+            this.speed = 14;
             break;
         case 3:
-            this.speed = 17.5;
+            this.speed = 16;
             break;
         case 4:
-            this.speed = 20;
+            this.speed = 18;
             break;
     }
 }

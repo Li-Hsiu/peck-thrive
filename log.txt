@@ -23,12 +23,10 @@ collision box generate done
 退出啄木头 done
 拆巢穴提升难度 done
 死亡界面 done
+3d 音效 done
+音效 done
 
-
-3d 音效
-音效
-
-
+分数
 
 sprint
 toon shading

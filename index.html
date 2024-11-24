@@ -21,12 +21,39 @@
 		}
 		.label1 {
 			position: absolute;
-			top: 60px;
-			left: 5px;
-			color: #fff;
-			padding: 20px 40px;
+			top: 50px;
+			left: 0px;
+			color: #FFF;
+			padding: 0px 0px;
 			font-family: Arial, sans-serif;
-			font-size: 20px;
+			font-size: 30px;
+			white-space: nowrap;
+    		overflow: hidden;
+    		text-overflow: ellipsis;
+		}
+		.label2 {
+			position: absolute;
+			top: 90px;
+			left: 0px;
+			color: #FFF;
+			padding: 0px 0px;
+			font-family: Arial, sans-serif;
+			font-size: 30px;
+			white-space: nowrap;
+    		overflow: hidden;
+    		text-overflow: ellipsis;
+		}
+		.label3 {
+			position: absolute;
+			top: 130px;
+			left: 0px;
+			color: #FFF;
+			padding: 0px 0px;
+			font-family: Arial, sans-serif;
+			font-size: 30px;
+			white-space: nowrap;
+    		overflow: hidden;
+    		text-overflow: ellipsis;
 		}
 		#health-bar-container {
 			position: fixed;
@@ -104,6 +131,17 @@
 		button:hover {
 			background-color: #e64a19; /* Darker shade on hover */
 		}
+		#startButton {
+			display: none; 
+            padding: 15px 30px;
+            font-size: 20px;
+            background-color: white; /* White background */
+            color: #000; /* Black text */
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
 	</style>
 	<script type="importmap">
 		{
@@ -129,6 +167,8 @@
 			</div>
 			<div>
 				<div class="label1"></div>
+				<div class="label2"></div>
+				<div class="label3"></div>
 				<div id="progress-container" style="display: none;">
 					<div id="progress-bar" style="width: 0%;"></div>
 				</div>
@@ -137,9 +177,11 @@
 				<div class="game-over-window">
 					<h1><span id="title">0</span></h1>
 					<p>Your Score: <span id="score">0</span></p>
+					<p>Survived: <span id="time">0</span>s</p>
 					<button id="replay-button">Replay</button>
 				</div>
 			</div>
+			<button id="startButton">Start Game</button>
 		</div>
 	</div>
 </body>

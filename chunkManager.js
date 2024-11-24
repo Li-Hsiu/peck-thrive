@@ -305,7 +305,7 @@ ChunkManager.prototype.update = function(playerCoord, timeStage, levelStage, tot
         for (var i = centerXIdx-(totalChunkLength-1)/2; i <= centerXIdx+(totalChunkLength-1)/2; i++) {
             for (var j = centerZIdx-(totalChunkLength-1)/2; j <= centerZIdx+(totalChunkLength-1)/2; j++) {
                 var newChunk = new Chunk(i,j,this.targetMaterial, false);
-                if (i>=-1 && i<=1 && j>=-1 && j<=1) {
+                if (i>=-2 && i<=2 && j>=-2 && j<=2) {
                     newChunk.load(this.scene, this.treeObjectPool, false);
                 }
                 else {

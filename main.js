@@ -8,9 +8,9 @@ import { OutlineEffect } from 'three/addons/effects/OutlineEffect.js';
 Physijs.scripts.worker = 'physijs_worker.js';
 Physijs.scripts.ammo = 'ammo.js';
 
-var scene, renderer, camera, ambientLight, directionalLight;
+var scene, renderer, camera, ambientLight, directionalLight, listener, collideSoundEffects, forest, levelUp;
 var keys, woodpecker, hawk, chunkManager, loadingManager, lastTime, totalDuration, isLoaded = false, isRunning = true, isSimulationPaused = false;
-var timeStage, timeStageBoolean, levelStage;
+var timeStage, levelStage, score;
 
 function initKeys() {
     keys = {
@@ -77,14 +77,10 @@ function init() {
     scene.add(directionalLight);
 
     loadingManager = new THREE.LoadingManager();
-    const progressContainer = document.getElementById('progress-container');
-    const progressBar = document.getElementById('progress-bar');
+    
     loadingManager.onLoad = function () {
-        progressContainer.style.display = 'none';
-        const healthBarContainer = document.getElementById('health-bar-container');
-        healthBarContainer.style.display = 'block';
-        totalDuration = 0;
-        isLoaded = true;
+        const start = document.getElementById('startButton');
+        start.style.display = "block";
     };
     loadingManager.onProgress = function (url, itemsLoaded, itemsTotal) {
         const progress = (itemsLoaded / itemsTotal) * 100;
@@ -92,6 +88,51 @@ function init() {
         progressBar.style.width = progress + '%';
         progressContainer.style.display = 'block';
     };
+
+    const progressContainer = document.getElementById('progress-container');
+    const progressBar = document.getElementById('progress-bar');
+    document.getElementById('startButton').addEventListener('click', function() {
+        progressContainer.style.display = 'none';
+        const healthBarContainer = document.getElementById('health-bar-container');
+        healthBarContainer.style.display = 'block';
+        document.getElementById('startButton').style.display = "none";
+        totalDuration = 0;
+        score = 0;
+        isLoaded = true;
+        listener = new THREE.AudioListener();
+        camera.add(listener);
+
+        const audioLoader = new THREE.AudioLoader();
+        const sfx1 = new THREE.Audio(listener);
+        audioLoader.load('./assets/collide1.mp3', (buffer) => {
+            sfx1.setBuffer(buffer);
+            sfx1.setVolume(1.0);
+        });
+        const sfx2 = new THREE.Audio(listener);
+        audioLoader.load('./assets/collide2.mp3', (buffer) => {
+            sfx2.setBuffer(buffer);
+            sfx2.setVolume(1.0);
+        });
+        const sfx3 = new THREE.Audio(listener);
+        audioLoader.load('./assets/collide3.mp3', (buffer) => {
+            sfx3.setBuffer(buffer);
+            sfx3.setVolume(1.0);
+        });
+        collideSoundEffects = [sfx1, sfx2, sfx3];
+        forest = new THREE.Audio(listener);
+        audioLoader.load('./assets/forest.mp3', (buffer) => {
+            forest.setBuffer(buffer);
+            forest.setLoop(true);
+            forest.autoPlay = true;
+            forest.setVolume(1.0);
+            forest.play();
+        });
+        levelUp = new THREE.Audio(listener);
+        audioLoader.load('./assets/levelUp.mp3', (buffer) => {
+            levelUp.setBuffer(buffer);
+            levelUp.setVolume(1.0);
+        });
+    });
     
     woodpecker = new Woodpecker(camera, scene, loadingManager);
     hawk = new Hawk(scene, woodpecker, loadingManager);
@@ -103,7 +144,7 @@ function init() {
         texture.mapping = THREE.EquirectangularRefractionMapping;
     });
 
-    timeStage = [60, 180, 300, 420, 560];
+    timeStage = [60, 60, 60, 60, 60];
     levelStage = 0;
 
     initKeys();
@@ -126,6 +167,7 @@ function init() {
     woodpecker.bird.addEventListener('collision', function(other) {
         console.log('Collision detected with', other.name);
         if (other.name == "target") {
+            score += 1000 * levelStage;
             woodpecker.isFlying = false;
             woodpecker.isPecking = true;
             isSimulationPaused = true;
@@ -138,25 +180,36 @@ function init() {
             other.material.dispose();
             ChunkManager.timeStageBoolean = false;
             woodpecker.bird.setLinearVelocity(new THREE.Vector3(0, 0, 0));
-            console.log("level up! " + level);
-            if (level >= 5) {
+            console.log("level up! " + levelStage);
+            levelUp.play();
+            score += levelStage / 2 * 10000;
+            if (levelStage >= 5) {
+                hawk.sound.pause();
                 console.log("win!");
-                isRunning = false;
+                isRunning = false;                
                 const titleElement = document.getElementById('title');
                 const scoreElement = document.getElementById('score');
+                const timeElement = document.getElementById('time');
                 const replayButton = document.getElementById('replay-button');
                 const gameOverOverlay = document.getElementById('game-over-overlay');
                 titleElement.textContent = 'You Win!';
-                scoreElement.textContent = 10;
+                scoreElement.textContent = score.toFixed(0);
+                timeElement.textContent = totalDuration.toFixed(1);
                 gameOverOverlay.style.display = 'flex';
                 replayButton.addEventListener('click', () => {
                     location.reload();
                 });
             }
-            woodpecker.levelAdjust(levelStage);
-            hawk.levelAdjust(levelStage);
+            else {
+                timeStage[levelStage] += totalDuration;
+                woodpecker.levelAdjust(levelStage);
+                hawk.levelAdjust(levelStage);
+            }
         }
         else {
+            const sfx = collideSoundEffects[Math.floor(Math.random() * 3)];
+            sfx.setVolume(woodpecker.speed/30);
+            sfx.play();
             woodpecker.collisionRecoilStartTime = new Date().getTime();
             woodpecker.onCollision = true;
             woodpecker.takeDamage(woodpecker.speed/2, true);
@@ -170,20 +223,22 @@ function animate() {
     requestAnimationFrame(animate);    
 
     if (isRunning && isLoaded) {
-        
         if (woodpecker && woodpecker.bird) {
             var currentTime = new Date().getTime();
             const deltaTime = (currentTime - lastTime) / 1000 || 0;
             lastTime = currentTime;
             totalDuration += deltaTime;
+            score += deltaTime * 100;
 
-            let birdMessage = woodpecker.update(keys.a, keys.d, keys.w, keys.s, keys.e, keys.space, deltaTime, renderer);
+            let birdMessage = woodpecker.update(keys.a, keys.d, keys.w, keys.s, keys.e, keys.space, deltaTime, renderer, listener);
             if (birdMessage == 'resumeSimulation') {
                 isSimulationPaused = false;
                 scene.onSimulationResume();
             }
             
-            document.querySelector(".label1").innerText = "Time: " + totalDuration.toFixed(1);
+            document.querySelector(".label1").innerText = "Difficulty Level: " + (levelStage+1).toFixed(0);
+            document.querySelector(".label2").innerText = "Score: " + score.toFixed(0);
+            document.querySelector(".label3").innerText = "Time: " + totalDuration.toFixed(1);
 
             directionalLight.position.copy(woodpecker.bird.position);
             directionalLight.position.y = 200;
@@ -192,17 +247,20 @@ function animate() {
             chunkManager.update(woodpecker.bird.position, timeStage, levelStage, totalDuration);
 
             if (hawk && hawk.boss) {
-                hawk.update(deltaTime, chunkManager);
+                hawk.update(deltaTime, chunkManager, listener);
             }
 
             if (woodpecker.health <= 0) {
+                hawk.sound.pause();
                 isRunning = false;
                 const titleElement = document.getElementById('title');
                 const scoreElement = document.getElementById('score');
+                const timeElement = document.getElementById('time');
                 const replayButton = document.getElementById('replay-button');
                 const gameOverOverlay = document.getElementById('game-over-overlay');
                 titleElement.textContent = 'Game Over';
-                scoreElement.textContent = 10;
+                scoreElement.textContent = score.toFixed(0);
+                timeElement.textContent = totalDuration.toFixed(1);
                 gameOverOverlay.style.display = 'flex';
                 replayButton.addEventListener('click', () => {
                     location.reload();

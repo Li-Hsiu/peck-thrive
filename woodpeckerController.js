@@ -9,6 +9,8 @@ const Woodpecker = function(camera, scene, loadingManager) {
     this.health = 100;
     this.maxHealth = 100;
 
+    this.soundInitialized = false;
+
     // load woodpecker model
     const birdGeometry = new THREE.SphereGeometry(0.25, 32, 32);
     let birdMaterial = Physijs.createMaterial(
@@ -44,7 +46,7 @@ const Woodpecker = function(camera, scene, loadingManager) {
 
         gltf.animations.forEach((clip) => {
             this.mixer.clipAction(clip).play();
-            this.mixer.timeScale = 3;
+            this.mixer.timeScale = this.speed/10;
         });
     });
 
@@ -111,7 +113,7 @@ const Woodpecker = function(camera, scene, loadingManager) {
     // initialize parameters
     this.isFlying = true;
     this.maxSpeed = 30;
-    this.speed = 0;
+    this.speed = -10;
     this.yawSpeedLeft = 0.1;
     this.yawSpeedRight = 0.1;
     this.maxYawSpeed = 1.2;
@@ -159,11 +161,44 @@ const Woodpecker = function(camera, scene, loadingManager) {
     this.peckGameCooldown = new Date().getTime();
 }
 
-Woodpecker.prototype.update = function(a, d, w, s, e, space, deltaTime, renderer) {
+Woodpecker.prototype.update = function(a, d, w, s, e, space, deltaTime, renderer, listener) {
+
+    if (!this.soundInitialized) {
+        const audioLoader = new THREE.AudioLoader();
+        this.aSoundEffect = new THREE.Audio(listener);
+        audioLoader.load('./assets/keys/a.mp3', (buffer) => {
+            this.aSoundEffect.setBuffer(buffer);
+            this.aSoundEffect.setVolume(1.0);
+        });
+        this.wSoundEffect = new THREE.Audio(listener);
+        audioLoader.load('./assets/keys/w.mp3', (buffer) => {
+            this.wSoundEffect.setBuffer(buffer);
+            this.wSoundEffect.setVolume(1.0);
+        });
+        this.sSoundEffect = new THREE.Audio(listener);
+        audioLoader.load('./assets/keys/s.mp3', (buffer) => {
+            this.sSoundEffect.setBuffer(buffer);
+            this.sSoundEffect.setVolume(1.0);
+        });
+        this.dSoundEffect = new THREE.Audio(listener);
+        audioLoader.load('./assets/keys/d.mp3', (buffer) => {
+            this.dSoundEffect.setBuffer(buffer);
+            this.dSoundEffect.setVolume(1.0);
+        });
+        this.eatSoundEffect = new THREE.Audio(listener);
+        audioLoader.load('./assets/keys/eat.mp3', (buffer) => {
+            this.eatSoundEffect.setBuffer(buffer);
+            this.eatSoundEffect.setVolume(1.0);
+        });
+        this.soundInitialized = true;
+    }
 
     if (this.bird && this.isFlying) {  
 
-        if (this.mixer) this.mixer.update(deltaTime); // Update animations
+        if (this.mixer) {
+            this.mixer.update(deltaTime); // Update animations
+            this.mixer.timeScale = this.speed/7.5;
+        }
 
         this.maxSpeed = 30 - (100-this.health)*0.3;
 
@@ -387,6 +422,7 @@ Woodpecker.prototype.playPeckGame = function(a,d,w,s,e) {
     switch(currentKey) {
         case 0:
             if (this.prevKeyState[0] == false && a) {
+                this.aSoundEffect.play();
                 this.bird.children[1].rotation.x = -Math.PI;
                 this.sequence.pop();
                 this.takeDamage(-1.5, true);
@@ -395,20 +431,24 @@ Woodpecker.prototype.playPeckGame = function(a,d,w,s,e) {
                 this.matImage.uniforms.u_time.value = 0;
             }
             else if (this.prevKeyState[1] == false && w) {
+                this.wSoundEffect.play();
                 this.bird.children[1].rotation.x = -Math.PI;
                 this.takeDamage(3, true);
             }
             else if (this.prevKeyState[2] == false && s) {
+                this.sSoundEffect.play();
                 this.bird.children[1].rotation.x = -Math.PI;
                 this.takeDamage(3, true);
             }
             else if (this.prevKeyState[3] == false && d) {
+                this.dSoundEffect.play();
                 this.bird.children[1].rotation.x = -Math.PI;
                 this.takeDamage(3, true);
             }
             break;
         case 1:
             if (this.prevKeyState[1] == false && w) {
+                this.wSoundEffect.play();
                 this.bird.children[1].rotation.x = -Math.PI;
                 this.sequence.pop();
                 this.takeDamage(-1.5, true);
@@ -417,20 +457,24 @@ Woodpecker.prototype.playPeckGame = function(a,d,w,s,e) {
                 this.matImage.uniforms.u_time.value = 0;
             } 
             else if (this.prevKeyState[0] == false && a) {
+                this.aSoundEffect.play();
                 this.bird.children[1].rotation.x = -Math.PI;
                 this.takeDamage(3, true);
             }
             else if (this.prevKeyState[2] == false && s) {
+                this.sSoundEffect.play();
                 this.bird.children[1].rotation.x = -Math.PI;
                 this.takeDamage(3, true);
             }
             else if (this.prevKeyState[3] == false && d) {
+                this.dSoundEffect.play();
                 this.bird.children[1].rotation.x = -Math.PI;
                 this.takeDamage(3, true);
             }
             break;
         case 2:
             if (this.prevKeyState[2] == false && s) {
+                this.sSoundEffect.play();
                 this.bird.children[1].rotation.x = -Math.PI;
                 this.sequence.pop();
                 this.takeDamage(-1.5, true);
@@ -439,20 +483,24 @@ Woodpecker.prototype.playPeckGame = function(a,d,w,s,e) {
                 this.matImage.uniforms.u_time.value = 0;
             }
             else if (this.prevKeyState[0] == false && a) {
+                this.aSoundEffect.play();
                 this.bird.children[1].rotation.x = -Math.PI;
                 this.takeDamage(3, true);
             }
             else if (this.prevKeyState[1] == false && w) {
+                this.wSoundEffect.play();
                 this.bird.children[1].rotation.x = -Math.PI;
                 this.takeDamage(3, true);
             }
             else if (this.prevKeyState[3] == false && d) {
+                this.dSoundEffect.play();
                 this.bird.children[1].rotation.x = -Math.PI;
                 this.takeDamage(3, true);
             }
             break;
         case 3:
             if (this.prevKeyState[3] == false && d) {
+                this.dSoundEffect.play();
                 this.bird.children[1].rotation.x = -Math.PI;
                 this.sequence.pop();
                 this.takeDamage(-1.5, true);
@@ -461,14 +509,17 @@ Woodpecker.prototype.playPeckGame = function(a,d,w,s,e) {
                 this.matImage.uniforms.u_time.value = 0;
             } 
             else if (this.prevKeyState[0] == false && a) {
+                this.aSoundEffect.play();
                 this.bird.children[1].rotation.x = -Math.PI;
                 this.takeDamage(3, true);
             }
             else if (this.prevKeyState[1] == false && w) {
+                this.wSoundEffect.play();
                 this.bird.children[1].rotation.x = -Math.PI;
                 this.takeDamage(3, true);
             }
             else if (this.prevKeyState[2] == false && s) {
+                this.sSoundEffect.play();
                 this.bird.children[1].rotation.x = -Math.PI;
                 this.takeDamage(3, true);
             }
@@ -476,6 +527,7 @@ Woodpecker.prototype.playPeckGame = function(a,d,w,s,e) {
     }
     this.prevKeyState = [a,w,s,d];
     if (this.sequence.length == 0) {
+        this.eatSoundEffect.play();
         this.takeDamage(-5, true);
         this.bird.children[1].rotation.x = -3*Math.PI/4;
         this.exitPeckGame();
@@ -509,7 +561,7 @@ Woodpecker.prototype.updateHealthBar = function() {
 }
 
 Woodpecker.prototype.takeDamage = function(amount, isShowEffect) {
-    this.health = Math.max(0, this.health - amount);
+    this.health = Math.min(100, Math.max(0, this.health - amount));
     this.updateHealthBar();
     if (amount >= 0 && isShowEffect) {
         this.matScreenPlane.uniforms.u_time.value = 0.0;
