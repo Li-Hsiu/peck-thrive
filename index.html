@@ -5,6 +5,7 @@
 	<meta charset="utf-8" />
 	<style>
 		body {
+			background-color: forestgreen;
 		 	margin: 0;
 			overflow: hidden;
 		}
@@ -17,25 +18,6 @@
 			position: absolute;
 			top: 50px;
 			left: 50px;
-		}
-		button {
-			display: block;
-			width: 300px;
-			padding: 15px;
-			margin: 10px 0;
-			background-color: transparent;
-			border: 2px solid white;
-			color: white;
-			font-size: 20px;
-			transition: background-color 0.3s, color 0.3s;
-			margin-bottom: 10px;
-		}
-		button:hover {
-			background-color: rgba(255, 255, 255, 0.2);
-		}
-		button:active {
-			background-color: rgba(255, 255, 255, 0.4);
-			color: rgba(255, 255, 255, 0.8);
 		}
 		.label1 {
 			position: absolute;
@@ -56,12 +38,71 @@
 			border-radius: 5px;
 			overflow: hidden;
 		}
-
 		#health-bar {
 			height: 100%;
 			width: 100%;
-			background-color: #fff;
+			background-color: #d00;
 			transition: width 0.3s ease;
+		}
+		#progress-container {
+			width: 50%;
+			background-color: rgba(0, 0, 0, 0.1); /* Light background for contrast */
+			border-radius: 5px; /* Optional: Add rounded corners */
+			position: fixed;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%); /* Centering */
+			z-index: 1000;
+			padding: 5px; /* Add some padding around the bar */
+		}
+		#progress-bar {
+			height: 20px;
+			background-color: white; /* Change to white */
+			width: 0%;
+			transition: width 0.5s;
+			border-radius: 5px; /* Optional: Add rounded corners */
+		}
+		.game-over-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(255, 255, 255, 0.2); /* Light background for the overlay */
+			display: flex; /* Center the contents */
+			justify-content: center;
+			align-items: center;
+			z-index: 1000; /* Ensure it's on top */
+		}
+		.game-over-window {
+			text-align: center;
+			padding: 20px;
+			border-radius: 10px;
+			box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+		}
+		h1 {
+			color: white;
+			font-size: 2.5em;
+			margin-bottom: 10px;
+		}
+
+		p {
+			color: white;
+			font-size: 1.2em;
+			margin-bottom: 20px;
+		}
+		button {
+			padding: 10px 20px;
+			font-size: 1em;
+			color: white;
+			background-color: #ff5722; /* A vibrant color for the button */
+			border: none;
+			border-radius: 5px;
+			cursor: pointer;
+			transition: background-color 0.3s;
+		}
+		button:hover {
+			background-color: #e64a19; /* Darker shade on hover */
 		}
 	</style>
 	<script type="importmap">
@@ -79,12 +120,25 @@
 <body>
 	<script type="module" src="physi.module.js"></script>
 	<script type="module" src="physijs_worker.js"></script>
+	<script type="module" src="shaders.js"></script>
 	<script type="module" src="main.js"></script>
 	<div id="container">
 		<div id="ui-container">
-			<!--<div class="label1">Coord</div>-->
-			<div id="health-bar-container">
+			<div id="health-bar-container" style="display: none;">
 				<div id="health-bar"></div>
+			</div>
+			<div>
+				<div class="label1"></div>
+				<div id="progress-container" style="display: none;">
+					<div id="progress-bar" style="width: 0%;"></div>
+				</div>
+			</div>
+			<div class="game-over-overlay" id="game-over-overlay" style="display: none;">
+				<div class="game-over-window">
+					<h1><span id="title">0</span></h1>
+					<p>Your Score: <span id="score">0</span></p>
+					<button id="replay-button">Replay</button>
+				</div>
 			</div>
 		</div>
 	</div>

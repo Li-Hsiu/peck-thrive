@@ -2,11 +2,13 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 
 Physijs.scripts.worker = 'physijs_worker.js';
 Physijs.scripts.ammo = 'ammo.js';
 
-var scene, renderer, camera, controls, points, points2, geo1, geo2, objList, ambientLight, directionalLight, ground, bird, boss, keys, mixer, mixer2, raycaster, raycaster2, intersectPoint;
+var scene, renderer, camera, plane, mat, controls, points, points2, geo1, geo2, objList, ambientLight, directionalLight, ground, bird, boss, keys, mixer, mixer2, raycaster, raycaster2, intersectPoint;
 
 function initKeys() {
     keys = {
@@ -38,7 +40,7 @@ function initKeys() {
 
 function init() {
     scene = new Physijs.Scene();
-    scene.background = new THREE.Color(0x87CEEB);
+    //scene.background = new THREE.Color(0x87CEEB);
     scene.setGravity(new THREE.Vector3(0, 0, 0));
 
     camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 0.1, 1000 );
@@ -150,6 +152,27 @@ function init() {
     geo2 = new THREE.BufferGeometry().setFromPoints(points2);
     const rayLine2 = new THREE.Line(geo2, new THREE.LineBasicMaterial({ color: 0xff0000 }));
     scene.add(rayLine2);
+
+
+    // Load the skydome model
+    const loader = new FBXLoader();
+    loader.load('./assets/sky/FBX/SkyDome.fbx', (skydome) => {
+        skydome.scale.set(10, 10, 10); // Adjust scale as needed
+        scene.add(skydome);
+    });
+
+    const mtlLoader = new MTLLoader();
+    mtlLoader.load('./assets/nest/nest.mtl', (materials) => {
+        materials.preload();
+        
+        const objLoader = new OBJLoader();
+        objLoader.setMaterials(materials);
+        objLoader.load('./assets/nest/nest.obj', (object) => {
+            object.scale.set(3,3,3);
+            scene.add(object);
+        });
+    });
+
 
     // create tree
     {
@@ -331,9 +354,11 @@ function animate() {
         points2[1].copy(boss.position.clone().add(direction2.clone().multiplyScalar(200)));
         geo2.setFromPoints(points2);
 
-
         scene.simulate(); 
+
+
         renderer.render(scene, camera);
+        
     }
 }
 

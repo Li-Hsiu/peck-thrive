@@ -1,13 +1,14 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 
-var chunkSize = 40;
-var totalChunkLength = 11;
+var chunkSize = 50;
+var totalChunkLength = 9; 
 var colors = [0x0A0A0A, 0xCB2821, 0xC6A664, 0x47402E, 0xE5BE01, 0x909090, 0xFDF4E3, 0x282828, 0x6C4675, 0x592321]
 
 class Chunk {
-    constructor(xIdx, zIdx) {
+    constructor(xIdx, zIdx, mat, hasNest) {
         this.xIdx = xIdx;
         this.zIdx = zIdx;
         this.chunkSize = chunkSize;
@@ -17,11 +18,14 @@ class Chunk {
         this.treeList = [];
         this.targetList = [];
         this.material = Physijs.createMaterial(new THREE.MeshStandardMaterial({ color: 0x00FF00, opacity: 0.0, transparent: true }), 0.4, 0.2);
-        this.targetMaterial = Physijs.createMaterial(new THREE.MeshStandardMaterial({ color: 0x0000FF, opacity: 0.5, transparent: true }), 0.4, 0.2);
+        this.targetImgMat = mat;
+        this.targetMaterial = Physijs.createMaterial(new THREE.MeshStandardMaterial({ color: 0x00FF00, opacity: 0.0, transparent: true }), 0.4, 0.2);
+        this.nestMaterial = Physijs.createMaterial(new THREE.MeshStandardMaterial({ color: 0x00FF00, opacity: 0.0, transparent: true }), 0.4, 0.2);
+        this.hasNest = hasNest;
     }
 
     // load the chunk
-    load(scene, treeObjectPool) {
+    load(scene, treeObjectPool, hasTree) {
         // create ground
         this.ground = new Physijs.BoxMesh(new THREE.BoxGeometry( this.chunkSize, 10, this.chunkSize ), new THREE.MeshStandardMaterial({color: 0x2E6F40 }), 0); // color: colors[Math.floor(Math.random() * 10)]
         this.ground.castShadow = true;
@@ -29,34 +33,58 @@ class Chunk {
         this.ground.position.set(this.xCoord, -1, this.zCoord);
         scene.add(this.ground);
 
+        if (this.hasNest) {
+            this.nest = new Physijs.BoxMesh(new THREE.BoxGeometry(20, 12, 20), this.nestMaterial, 0);
+            this.nest.__dirtyPosition = true;
+            this.nest.position.set(this.xCoord, 5.0, this.zCoord);
+            const mtlLoader = new MTLLoader();
+            mtlLoader.load('./assets/nest/nest.mtl', (materials) => {
+                materials.preload();
+                const objLoader = new OBJLoader();
+                objLoader.setMaterials(materials);
+                objLoader.load('./assets/nest/nest.obj', (object) => {
+                    object.scale.set(10,10,10);
+                    this.nest.add(object);
+                });
+            });
+            this.nest.name = "nest";
+            scene.add(this.nest);
+        }
         // add trees from object pool
-        const randomNumber = Math.floor(Math.random() * 2 + 2);
-        for (let i=0; i<randomNumber; i++) {
-            if (treeObjectPool.length > 0) {
-                const randIdx = Math.floor(Math.random() * treeObjectPool.length);
-                var treeModel = treeObjectPool[randIdx];
-                let tree = this.createTreeSkeleton(treeModel);
-                tree.position.set(this.xCoord+Math.random()*this.chunkSize-this.chunkSize/2, -0.5, this.zCoord+Math.random()*this.chunkSize-this.chunkSize/2);
-                tree.__dirtyPosition = true;
-                tree.rotation.y = Math.random() * 2 * Math.PI;
-                tree.__dirtyRotation = true;
-                //tree.scale.set(Math.random() * 0.4 + 0.8, Math.random() * 0.4 + 0.8, Math.random() * 0.4 + 0.8);
-                this.treeList.push(tree);
-                treeObjectPool.splice(randIdx, 1);
-                scene.add(tree)
+        else if (hasTree) {
+            const randomNumber = Math.floor(Math.random() * 2 + 2);
+            for (let i=0; i<randomNumber; i++) {
+                if (treeObjectPool.length > 0) {
+                    const randIdx = Math.floor(Math.random() * treeObjectPool.length);
+                    var treeModel = treeObjectPool[randIdx];
+                    let tree = this.createTreeSkeleton(treeModel);
+                    tree.position.set(this.xCoord+Math.random()*this.chunkSize-this.chunkSize/2, -0.5, this.zCoord+Math.random()*this.chunkSize-this.chunkSize/2);
+                    tree.__dirtyPosition = true;
+                    tree.rotation.y = Math.random() * 2 * Math.PI;
+                    tree.__dirtyRotation = true;
+                    //tree.scale.set(Math.random() * 0.4 + 0.8, Math.random() * 0.4 + 0.8, Math.random() * 0.4 + 0.8);
+                    this.treeList.push(tree);
+                    treeObjectPool.splice(randIdx, 1);
+                    scene.add(tree);
 
-                if (Math.random() < 0.05) {
-                    let targetBox = new Physijs.CylinderMesh(new THREE.CylinderGeometry(2, 2, 1), this.targetMaterial, 0);
-                    targetBox.position.copy(tree.position);
-                    targetBox.position.y = Math.random() * 8 + 6;
-                    targetBox.rotateY(Math.random() * 2 * Math.PI);
-                    targetBox.position.add(targetBox.getWorldDirection(new THREE.Vector3()).multiplyScalar(4-targetBox.position.y*0.08));
-                    targetBox.rotateX(Math.PI/2);
-                    targetBox.__dirtyPosition = true;
-                    targetBox.__dirtyRotation = true;
-                    targetBox.name = "target";
-                    this.targetList.push(targetBox);
-                    scene.add(targetBox);
+                    if (Math.random() < 0.05) {
+                        let targetBox = new Physijs.CylinderMesh(new THREE.CylinderGeometry(3, 3, 1), this.targetMaterial, 0);
+                        targetBox.position.copy(tree.position);
+                        targetBox.position.y = Math.random() * 7 + 7;
+                        targetBox.rotateY(Math.random() * 2 * Math.PI);
+                        targetBox.position.add(targetBox.getWorldDirection(new THREE.Vector3()).multiplyScalar(4-targetBox.position.y*0.08));
+                        targetBox.rotateX(Math.PI/2);
+                        targetBox.__dirtyPosition = true;
+                        targetBox.__dirtyRotation = true;
+                        targetBox.name = "target";
+                        let image = new THREE.Mesh(new THREE.BoxGeometry(5, 1.5, 5), [null,null,this.targetImgMat,null,null,null], 0);
+                        targetBox.add(image);
+                        const light = new THREE.PointLight( 0xffffff, 0.5, 100 );
+                        light.position.set( 0, 0, 0 );
+                        targetBox.add( light );
+                        this.targetList.push(targetBox);
+                        scene.add(targetBox);
+                    }
                 }
             }
         }
@@ -85,9 +113,20 @@ class Chunk {
             this.targetList[i].geometry.dispose();
             this.targetList[i].material.dispose();
         }
+        if (this.hasNest && this.nest) {
+            scene.remove(this.nest);
+            this.nest.geometry.dispose();
+            this.nest.material.dispose();
+        }
         scene.remove(this.ground);
         this.ground.geometry.dispose();
         this.ground.material.dispose();
+        if (this.hasNest && this.nest) {
+            return true;
+        }
+        else {
+            return false;
+        }
     }
 
     createTreeSkeleton(treeModel) {
@@ -191,30 +230,45 @@ class Chunk {
     }
 }
 
-const ChunkManager = function (scene) {
+const ChunkManager = function(scene, loadingManager) {
+
     this.isInitialized = false;
     this.isReadyToInitialize = false;
 
     // initialize chunkList
     this.scene = scene;
     this.chunkList = [];
+    this.timeStageBoolean = false;
+
+    // target texture
+    this.targetMaterial = null; 
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load('./assets/sound.png', (texture) => {
+        this.targetMaterial = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            color: 0xFFFFFF,
+            side: THREE.FrontSide
+        });
+    });
 
     // create trees and save in a objectPool
     this.treeObjectPool = [];
-    this.totalNumTree = 320;
+    this.totalNumTree = 320; // 320
     this.material = Physijs.createMaterial(
         new THREE.MeshStandardMaterial({ color: 0x00FF00, opacity: 0.5, transparent: true }),
         0.4,
         0.2
     );
-    this.loadTreeModels();
+    this.loadTreeModels(loadingManager);
 }
 
-ChunkManager.prototype.loadTreeModels = function() {
+ChunkManager.prototype.loadTreeModels = function(loadingManager) {
 
     // load all tree models for the scene
     this.numLoaded = 0;
-    this.loader = new FBXLoader();   
+
+    this.loader = new FBXLoader(loadingManager);   
     this.textureLoader = new THREE.TextureLoader();
     this.texture = this.textureLoader.load('./assets/tree/Textures/T_Trees_temp_climate.png');   
     for (let i=0; i<this.totalNumTree; i++) {
@@ -230,7 +284,6 @@ ChunkManager.prototype.loadTreeModels = function() {
                 }
             });
             fbx.scale.copy(new THREE.Vector3(0.1,0.1,0.1));
-            //fbx.scale.copy(new THREE.Vector3(0.01,0.01,0.01));
             fbx.position.set(0, 0, 0);
 
             this.numLoaded++;
@@ -243,7 +296,7 @@ ChunkManager.prototype.loadTreeModels = function() {
     }
 }
 
-ChunkManager.prototype.update = function(playerCoord) {
+ChunkManager.prototype.update = function(playerCoord, timeStage, levelStage, totalDuration) {
     var centerXIdx = Math.round(playerCoord.x / chunkSize);
     var centerZIdx = Math.round(playerCoord.z / chunkSize);
    
@@ -251,8 +304,13 @@ ChunkManager.prototype.update = function(playerCoord) {
     if (!this.isInitialized && this.isReadyToInitialize) { 
         for (var i = centerXIdx-(totalChunkLength-1)/2; i <= centerXIdx+(totalChunkLength-1)/2; i++) {
             for (var j = centerZIdx-(totalChunkLength-1)/2; j <= centerZIdx+(totalChunkLength-1)/2; j++) {
-                var newChunk = new Chunk(i,j);
-                newChunk.load(this.scene, this.treeObjectPool);
+                var newChunk = new Chunk(i,j,this.targetMaterial, false);
+                if (i>=-1 && i<=1 && j>=-1 && j<=1) {
+                    newChunk.load(this.scene, this.treeObjectPool, false);
+                }
+                else {
+                    newChunk.load(this.scene, this.treeObjectPool, true);
+                }
                 this.chunkList.push(newChunk);
             }
         }
@@ -264,7 +322,10 @@ ChunkManager.prototype.update = function(playerCoord) {
         // disload distant chunks
         this.chunkList = this.chunkList.filter(chunk => {
             if (Math.abs(chunk.xIdx - centerXIdx) > (totalChunkLength - 1) / 2 || Math.abs(chunk.zIdx - centerZIdx) > (totalChunkLength - 1) / 2) {
-                chunk.disload(this.scene, this.treeObjectPool);
+                let isNest = chunk.disload(this.scene, this.treeObjectPool);
+                if (isNest) {
+                    this.timeStageBoolean = false;
+                }
                 return false;
             }
             return true;
@@ -274,15 +335,22 @@ ChunkManager.prototype.update = function(playerCoord) {
         for (var i = centerXIdx-(totalChunkLength-1)/2; i <= centerXIdx+(totalChunkLength-1)/2; i++) {
             for (var j = centerZIdx-(totalChunkLength-1)/2; j <= centerZIdx+(totalChunkLength-1)/2; j++) {
                 if (!this.chunkList.some(chunk => chunk.xIdx === i && chunk.zIdx === j)) {
-                    var newChunk = new Chunk(i,j);
-                    newChunk.load(this.scene, this.treeObjectPool);
-                    this.chunkList.push(newChunk);
+                    if (timeStage[levelStage] < totalDuration && !this.timeStageBoolean && Math.random() < 0.01) { // summon nest
+                        var newChunk = new Chunk(i,j,this.targetMaterial, true);
+                        newChunk.load(this.scene, this.treeObjectPool, true);
+                        this.chunkList.push(newChunk);
+                        this.timeStageBoolean = true;
+                    }
+                    else {
+                        var newChunk = new Chunk(i,j,this.targetMaterial, false);
+                        newChunk.load(this.scene, this.treeObjectPool, true);
+                        this.chunkList.push(newChunk);
+                    }   
                 }
             }
         }
-
     }
-    //console.log(this.treeObjectPool.length)
+    console.log(this.treeObjectPool.length)
 }
 
 export { ChunkManager };

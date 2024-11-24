@@ -11,8 +11,27 @@ treeObjectPool存的是model
 
 
 todo:
-饥饿条
-啄木头出错 惩罚
-死亡结算
-啄木头动画
-加速
+饥饿条 done
+啄木头出错 惩罚 done
+死亡结算 done
+啄木头动画 done
+不能倒过来 done
+向下加速向上减速 done
+每按一下都回血 done
+sequence预示shader done
+collision box generate done
+退出啄木头 done
+拆巢穴提升难度 done
+死亡界面 done
+
+
+3d 音效
+音效
+
+
+
+sprint
+toon shading
+perlin
+鼠标
+拖动鼠标转视角

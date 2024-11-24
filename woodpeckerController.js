@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-const Woodpecker = function(camera, scene) {
-
+const Woodpecker = function(camera, scene, loadingManager) {
+    
     this.camera = camera;
     this.scene = scene;
 
@@ -18,12 +18,12 @@ const Woodpecker = function(camera, scene) {
     );
     this.bird = new Physijs.SphereMesh(birdGeometry, birdMaterial);
     this.bird.position.set(0, 15, 0);
-    //this.bird.setCcdMotionThreshold(30);
-    //this.bird.setCcdSweptSphereRadius(0.2);
+    this.bird.setCcdMotionThreshold(30);
+    this.bird.setCcdSweptSphereRadius(0.2);
     //this.bird.add(new THREE.AxesHelper(20));
     this.bird.add(camera);
     scene.add(this.bird);
-    const gltfLoader = new GLTFLoader();
+    const gltfLoader = new GLTFLoader(loadingManager);
     gltfLoader.load('./assets/bird/scene.gltf', (gltf) => {
         let birdModel = gltf.scene;
         this.mixer = new THREE.AnimationMixer(birdModel);
@@ -38,18 +38,88 @@ const Woodpecker = function(camera, scene) {
         birdModel.rotation.set(0,Math.PI,0);
         this.bird.add(birdModel);
 
+        const light = new THREE.PointLight( 0xffffff, 0.5, 100 );
+        light.position.set( 0, 0, 0 );
+        this.bird.add( light );
+
         gltf.animations.forEach((clip) => {
             this.mixer.clipAction(clip).play();
             this.mixer.timeScale = 3;
         });
     });
 
+    this.textureLoader = new THREE.TextureLoader();
+    this.textureA = this.textureLoader.load('./assets/keys/aWorm.png');
+    this.textureW = this.textureLoader.load('./assets/keys/wWorm.png');
+    this.textureS = this.textureLoader.load('./assets/keys/sWorm.png');
+    this.textureD = this.textureLoader.load('./assets/keys/dWorm.png');
+    this.textureAkey = this.textureLoader.load('./assets/keys/a.png');
+    this.textureWkey = this.textureLoader.load('./assets/keys/w.png');
+    this.textureSkey = this.textureLoader.load('./assets/keys/s.png');
+    this.textureDkey = this.textureLoader.load('./assets/keys/d.png');
+
+    this.shader = THREE.ShaderLib["pecking-game"];
+
+    this.shaderUniforms = THREE.UniformsUtils.clone(this.shader.imageUniforms);
+    this.imageBuffer = new THREE.WebGLRenderTarget(2048, 2048, { format: THREE.RGBAFormat, type: THREE.UnsignedByteType });
+    this.matImage = new THREE.ShaderMaterial({
+        uniforms: this.shaderUniforms,
+        vertexShader: this.shader.computeVertexShader,
+        fragmentShader: this.shader.imageFragmentShader,
+        transparent: true,
+        depthWrite: false
+    });
+    this.matImage.uniforms.u_time.value = 0;
+    this.matImage.uniforms.u_interval.value = 0.1;
+    this.matImage.uniforms.u_textures.value.push(this.textureA, this.textureW, this.textureS, this.textureD);
+    this.matImage.uniforms.u_keyTextures.value.push(this.textureAkey, this.textureWkey, this.textureSkey, this.textureDkey);
+    
+    this.shaderUniforms = THREE.UniformsUtils.clone(this.shader.blurUniforms);
+    this.matBlurred = new THREE.ShaderMaterial({
+        uniforms: this.shaderUniforms,
+        vertexShader: this.shader.computeVertexShader,
+        fragmentShader: this.shader.blurFragmentShader,
+        transparent: true,
+        depthWrite: false
+    });
+    this.blurredImageBuffer = new THREE.WebGLRenderTarget(1024, 1024, { format: THREE.RGBAFormat, type: THREE.UnsignedByteType });
+    this.matBlurred.uniforms.u_blurSize.value = 0.000;
+
+    this.shaderUniforms = THREE.UniformsUtils.clone(this.shader.finalUniforms);
+    this.matFinal = new THREE.ShaderMaterial({
+        uniforms: this.shaderUniforms,
+        vertexShader: this.shader.vertexShader,
+        fragmentShader: this.shader.finalFragmentShader,
+        transparent: true,
+        depthWrite: false
+    });
+    this.gamePlane = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.0, 64, 64), this.matFinal);
+
+    this.shaderUniforms = THREE.UniformsUtils.clone(this.shader.screenUniforms);
+    this.matScreenPlane = new THREE.ShaderMaterial({
+        uniforms: this.shaderUniforms,
+        vertexShader: this.shader.vertexShader,
+        fragmentShader: this.shader.screenFragmentShader,
+        transparent: true,
+        depthWrite: false
+    });
+    this.matScreenPlane.uniforms.u_effectDuration.value = 0.5;
+    this.matScreenPlane.uniforms.u_time.value = this.matScreenPlane.uniforms.u_effectDuration.value;
+    this.screenPlane = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.0, 64, 64), this.matScreenPlane);
+    this.scene.add(this.screenPlane);
+
     // initialize parameters
     this.isFlying = true;
     this.maxSpeed = 30;
     this.speed = 0;
-    this.yawSpeed = 1.25;
-    this.pitchSpeed = 1.25;
+    this.yawSpeedLeft = 0.1;
+    this.yawSpeedRight = 0.1;
+    this.maxYawSpeed = 1.2;
+
+    this.pitchSpeedUp = 0.4;
+    this.pitchSpeedDown = 0.6;
+    this.maxPitchSpeedUp = 0.8;
+    this.maxPitchSpeedDown = 1.2;
 
     this.yaw = 0.0;
     this.pitch = 0.0;
@@ -64,6 +134,10 @@ const Woodpecker = function(camera, scene) {
     this.originalRot = null;
     this.goalPos = null;
     this.goalRot = null;
+    this.modelOriginalPos = null;
+    this.modelOriginalRot = null;
+    this.modelGoalPos = null;
+    this.modelGoalRot = null;
     this.originalCamPos = null;
     this.originalCamRot = null;
     this.goalCamPos = null;
@@ -78,31 +152,57 @@ const Woodpecker = function(camera, scene) {
 
     this.sequence = [];
     this.keys = [];
+    this.prevKeyState = [false, false, false, false];
 
     this.reduceHealthCooldown = new Date().getTime();
+    this.takeDamageInterval = 3000;
+    this.peckGameCooldown = new Date().getTime();
 }
 
-Woodpecker.prototype.update = function(a, d, w, s, space, deltaTime) {
+Woodpecker.prototype.update = function(a, d, w, s, e, space, deltaTime, renderer) {
 
     if (this.bird && this.isFlying) {  
 
         if (this.mixer) this.mixer.update(deltaTime); // Update animations
 
-        // Set rotation based on deltaTime
-        if (a) this.yaw += this.yawSpeed * deltaTime;
-        if (d) this.yaw -= this.yawSpeed * deltaTime;
-        if (w) this.pitch += this.pitchSpeed * deltaTime;
-        if (s) this.pitch -= this.pitchSpeed * deltaTime;
-        //if (space) this.pitch = 0;
+        this.maxSpeed = 30 - (100-this.health)*0.3;
 
-        //this.pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.pitch));
+        // Set rotation based on deltaTime
+        if (a) {
+            this.yawSpeedLeft = Math.min(this.maxYawSpeed, this.yawSpeedLeft + this.yawSpeedLeft * deltaTime * 3);
+            this.yaw += this.yawSpeedLeft * deltaTime;
+        }
+        else {
+            this.yawSpeedLeft = Math.max(0.1, this.yawSpeedLeft - this.yawSpeedLeft * deltaTime * 3);
+        }
+        if (d) {
+            this.yawSpeedRight = Math.min(this.maxYawSpeed, this.yawSpeedRight + this.yawSpeedRight * deltaTime * 3);
+            this.yaw -= this.yawSpeedRight * deltaTime;
+        }
+        else {
+            this.yawSpeedRight = Math.max(0.1, this.yawSpeedRight - this.yawSpeedRight * deltaTime * 3);
+        }
+        if (s) {
+            this.pitchSpeedUp = Math.min(this.maxPitchSpeedUp, this.pitchSpeedUp + this.pitchSpeedUp * deltaTime * 2.0);
+            this.pitch = Math.max(-0.8, this.pitch - this.pitchSpeedUp * deltaTime);
+        }
+        else {
+            this.pitchSpeedUp = 0.1;
+        }
+        if (w) {
+            this.pitchSpeedDown = Math.min(this.maxPitchSpeedDown, this.pitchSpeedDown + this.pitchSpeedDown * deltaTime * 1.5);
+            this.pitch = Math.min(0.8, this.pitch + this.pitchSpeedDown * deltaTime);
+        }
+        else {
+            this.pitchSpeedDown = 0.1;
+        }
 
         this.yawQuaternion.setFromEuler(new THREE.Euler(0, this.yaw, 0));
         this.pitchQuaternion.setFromEuler(new THREE.Euler(this.pitch, 0, 0));
         this.bird.rotation.setFromQuaternion(this.quaternion.multiplyQuaternions(this.yawQuaternion, this.pitchQuaternion));
 
         if (new Date().getTime() - this.collisionRecoilStartTime > 500) {
-            
+            this.maxSpeed = 30 - (100-this.health)*0.2 - 15*(this.pitch-0.3);
             if (a||d) this.speed = Math.min(this.maxSpeed/1.5, this.speed);
 
             if (this.onCollision) {
@@ -122,17 +222,43 @@ Woodpecker.prototype.update = function(a, d, w, s, space, deltaTime) {
             this.bird.setLinearVelocity(this.bounceDirection);
             this.bird.material.color.set('#FF0000');
         }
+        if (this.bird.position.y > 35) {
+            this.bird.position.y = 35;
+            if (this.pitch > 0) {
+                this.pitch = Math.max(0, this.pitch-= deltaTime);
+            }
+        }
+        const planeWorldPosition = new THREE.Vector3();
+        const planeWorldQuaternion = new THREE.Quaternion();
+        this.camera.getWorldPosition(planeWorldPosition);
+        this.camera.getWorldQuaternion(planeWorldQuaternion);
+        this.screenPlane.position.copy(planeWorldPosition); 
+        this.screenPlane.quaternion.copy(planeWorldQuaternion);
+        this.screenPlane.position.add(this.screenPlane.getWorldDirection(new THREE.Vector3()).multiplyScalar(-0.6));
+        this.matScreenPlane.uniforms.u_time.value += deltaTime;
     }
     else if (this.bird && this.isPecking) {
         if (this.isInterpolating) {
-            this.interpolate();
+            this.interpolate(a, d, w, s);
         }
         else {
-            this.playPeckGame(a, d, w, s);
+            if (new Date().getTime() - this.peckGameCooldown > 50) {
+                this.playPeckGame(a, d, w, s, e);
+                this.peckGameCooldown = new Date().getTime();
+            }
+            this.renderGamePlane(deltaTime, renderer);
         }
+        const planeWorldPosition = new THREE.Vector3();
+        const planeWorldQuaternion = new THREE.Quaternion();
+        this.camera.getWorldPosition(planeWorldPosition);
+        this.camera.getWorldQuaternion(planeWorldQuaternion);
+        this.screenPlane.position.copy(planeWorldPosition); 
+        this.screenPlane.quaternion.copy(planeWorldQuaternion);
+        this.screenPlane.position.add(this.screenPlane.getWorldDirection(new THREE.Vector3()).multiplyScalar(-0.6));
+        this.matScreenPlane.uniforms.u_time.value += deltaTime;        
     }
-    if (new Date().getTime() - this.reduceHealthCooldown > 10000) {
-        this.takeDamage(10);
+    if (new Date().getTime() - this.reduceHealthCooldown > this.takeDamageInterval) {
+        this.takeDamage(1, false);
         this.reduceHealthCooldown = new Date().getTime();
     }
 
@@ -145,36 +271,50 @@ Woodpecker.prototype.update = function(a, d, w, s, space, deltaTime) {
 }
 
 Woodpecker.prototype.enterPeckGame = function(other) {
-    console.log(other.position)
     this.target = other;
     this.originalPos = this.bird.position.clone();
     this.originalRot = this.bird.rotation.clone();
+    this.modelOriginalPos = this.bird.children[1].position.clone();
+    this.modelOriginalRot = this.bird.children[1].rotation.clone();
     this.bird.position.copy(other.position);
     this.bird.__dirtyPosition = true;
     this.bird.rotation.copy(other.rotation);
     this.bird.rotateX(-Math.PI/2);
     this.bird.position.add(this.bird.getWorldDirection(new THREE.Vector3()).multiplyScalar(2));
+    this.bird.children[1].position.z -= 1;
+    this.bird.children[1].position.y -= 0.2;
+    this.bird.children[1].rotateX(-Math.PI/4);
     this.bird.__dirtyRotation = true;
     this.goalPos = this.bird.position.clone();
     this.goalRot = this.bird.rotation.clone();
+    this.modelGoalPos = this.bird.children[1].position.clone();
+    this.modelGoalRot = this.bird.children[1].rotation.clone();
     other.material.opacity = 0;
+    other.remove(other.children[0]);
     this.startTime = new Date().getTime();
     this.enterPecking = true;
     this.isInterpolating = true;
 }
 
-Woodpecker.prototype.interpolate = function() {
+Woodpecker.prototype.interpolate = function(a, d, w, s) {
     const currentTime = new Date().getTime();
     const elapsedTime = currentTime - this.startTime;
     const progress = Math.min(elapsedTime / this.duration, 1);
 
     this.bird.position.lerpVectors(this.originalPos, this.goalPos, progress);
+    this.bird.children[1].position.lerpVectors(this.modelOriginalPos, this.modelGoalPos, progress);
     
     const startQuaternion = new THREE.Quaternion().setFromEuler(this.originalRot);
     const endQuaternion = new THREE.Quaternion().setFromEuler(this.goalRot);
     const quaternion = new THREE.Quaternion();
     quaternion.slerpQuaternions(startQuaternion, endQuaternion, progress);
     this.bird.quaternion.copy(quaternion);
+
+    const startQuaternionModel = new THREE.Quaternion().setFromEuler(this.modelOriginalRot);
+    const endQuaternionModel = new THREE.Quaternion().setFromEuler(this.modelGoalRot);
+    const quaternionModel = new THREE.Quaternion();
+    quaternionModel.slerpQuaternions(startQuaternionModel, endQuaternionModel, progress);
+    this.bird.children[1].quaternion.copy(quaternionModel);
 
     if (this.enterPecking) {
         this.originalCamPos = new THREE.Vector3(0, 1.5, 4);
@@ -198,7 +338,12 @@ Woodpecker.prototype.interpolate = function() {
     if (progress >= 1) {
         if (this.enterPecking) {
             this.isInterpolating = false;
-            this.summonKeys();
+            this.generateKeySequence();
+            this.prevKeyState = [a, w, s, d];
+            this.gamePlane.position.copy(this.camera.position); 
+            this.gamePlane.quaternion.copy(this.camera.quaternion);
+            this.gamePlane.position.add(this.gamePlane.getWorldDirection(new THREE.Vector3()).multiplyScalar(-0.6));
+            this.bird.add(this.gamePlane);
             this.enterPecking = false;
         }
         else if (this.exitPecking) {
@@ -209,106 +354,135 @@ Woodpecker.prototype.interpolate = function() {
             const currentEuler = new THREE.Euler().setFromQuaternion(this.bird.quaternion, 'YXZ');
             this.yaw = currentEuler.y;
             this.pitch = 0;
-            this.speed = 0;
+            this.speed = -10;
+            this.yawSpeedLeft = 1.0;
+            this.yawSpeedRight = 1.0;
             this.bird.setLinearVelocity(new THREE.Vector3(0, 0, 0));
             this.returnMessage = 'resumeSimulation';
         }
     }
 }
 
-Woodpecker.prototype.summonKeys = function() {
-
-    const offset = 0.5;
-
-    let keyW = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), new THREE.MeshBasicMaterial({ color: 0x0000ff }));
-    keyW.position.copy(this.target.position);
-    keyW.rotation.copy(this.target.rotation);
-    keyW.rotateX(-Math.PI/2);
-    keyW.position.add(this.bird.getWorldDirection(new THREE.Vector3()).multiplyScalar(offset));
-    keyW.position.add(new THREE.Vector3(0, 1, 0).applyQuaternion(this.bird.quaternion).normalize().multiplyScalar(0.5));
-    this.scene.add(keyW);
-
-    let keyA = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), new THREE.MeshBasicMaterial({ color: 0x0000ff }));
-    keyA.position.copy(this.target.position);
-    keyA.rotation.copy(this.target.rotation);
-    keyA.rotateX(-Math.PI/2);
-    keyA.position.add(this.bird.getWorldDirection(new THREE.Vector3()).multiplyScalar(offset));
-    keyA.position.add(new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), this.bird.getWorldDirection(new THREE.Vector3())).normalize().multiplyScalar(-0.5));
-    this.scene.add(keyA);
-
-    let keyS = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), new THREE.MeshBasicMaterial({ color: 0x0000ff }));
-    keyS.position.copy(this.target.position);
-    keyS.rotation.copy(this.target.rotation);
-    keyS.rotateX(-Math.PI/2);
-    keyS.position.add(this.bird.getWorldDirection(new THREE.Vector3()).multiplyScalar(offset));
-    this.scene.add(keyS);
-
-    let keyD = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), new THREE.MeshBasicMaterial({ color: 0x0000ff }));
-    keyD.position.copy(this.target.position);
-    keyD.rotation.copy(this.target.rotation);
-    keyD.rotateX(-Math.PI/2);
-    keyD.position.add(this.bird.getWorldDirection(new THREE.Vector3()).multiplyScalar(offset));
-    keyD.position.add(new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), this.bird.getWorldDirection(new THREE.Vector3())).normalize().multiplyScalar(0.5));
-    this.scene.add(keyD);
-
-    this.keys.push(keyW, keyA, keyS, keyD);
-    this.generateKeySequence();
-}
-
 Woodpecker.prototype.generateKeySequence = function() {
-    const keys = ['W', 'A', 'S', 'D'];
     this.sequence = [];
     const n = Math.floor(Math.random() * (20 - 10 + 1)) + 10;
-
-    for (let i = 0; i < n; i++) {
-        const randomKey = keys[Math.floor(Math.random() * keys.length)];
-        this.sequence.push(randomKey);
+    const randomNum = Math.floor(Math.random() * 4);
+    this.sequence.push(randomNum);
+    for (let i = 1; i < n; i++) {
+        let randomNum = Math.floor(Math.random() * 4);
+        while (randomNum == this.sequence[i-1]) {
+            randomNum = Math.floor(Math.random() * 4);
+        }
+        this.sequence.push(randomNum);
     }
+    this.matImage.uniforms.u_keys.value = new Int32Array(this.sequence.slice(-5)).reverse();
+    this.matImage.uniforms.u_length.value = new Int32Array(this.sequence.slice(-5)).reverse().length;
+    
 }
 
-Woodpecker.prototype.playPeckGame = function(a,d,w,s) {
+Woodpecker.prototype.playPeckGame = function(a,d,w,s,e) {
+    
     let currentKey = this.sequence[this.sequence.length-1];
-    console.log(currentKey);
+    this.bird.children[1].rotation.x = -3*Math.PI/4;
     switch(currentKey) {
-        case 'W':
-            this.keys[0].material.color.set('#00ff00');
-            this.keys[1].material.color.set('#0000ff');
-            this.keys[2].material.color.set('#0000ff');
-            this.keys[3].material.color.set('#0000ff');
-            if (w && !a && !s && !d) {
+        case 0:
+            if (this.prevKeyState[0] == false && a) {
+                this.bird.children[1].rotation.x = -Math.PI;
                 this.sequence.pop();
+                this.takeDamage(-1.5, true);
+                this.matImage.uniforms.u_length.value = new Int32Array(this.sequence.slice(-5)).reverse().length;
+                this.matImage.uniforms.u_keys.value = new Int32Array(this.sequence.slice(-5)).reverse();    
+                this.matImage.uniforms.u_time.value = 0;
+            }
+            else if (this.prevKeyState[1] == false && w) {
+                this.bird.children[1].rotation.x = -Math.PI;
+                this.takeDamage(3, true);
+            }
+            else if (this.prevKeyState[2] == false && s) {
+                this.bird.children[1].rotation.x = -Math.PI;
+                this.takeDamage(3, true);
+            }
+            else if (this.prevKeyState[3] == false && d) {
+                this.bird.children[1].rotation.x = -Math.PI;
+                this.takeDamage(3, true);
             }
             break;
-        case 'A':
-            this.keys[0].material.color.set('#0000ff');
-            this.keys[1].material.color.set('#00ff00');
-            this.keys[2].material.color.set('#0000ff');
-            this.keys[3].material.color.set('#0000ff');
-            if (!w && a && !s && !d) {
+        case 1:
+            if (this.prevKeyState[1] == false && w) {
+                this.bird.children[1].rotation.x = -Math.PI;
                 this.sequence.pop();
+                this.takeDamage(-1.5, true);
+                this.matImage.uniforms.u_length.value = new Int32Array(this.sequence.slice(-5)).reverse().length;
+                this.matImage.uniforms.u_keys.value = new Int32Array(this.sequence.slice(-5)).reverse();
+                this.matImage.uniforms.u_time.value = 0;
             } 
+            else if (this.prevKeyState[0] == false && a) {
+                this.bird.children[1].rotation.x = -Math.PI;
+                this.takeDamage(3, true);
+            }
+            else if (this.prevKeyState[2] == false && s) {
+                this.bird.children[1].rotation.x = -Math.PI;
+                this.takeDamage(3, true);
+            }
+            else if (this.prevKeyState[3] == false && d) {
+                this.bird.children[1].rotation.x = -Math.PI;
+                this.takeDamage(3, true);
+            }
             break;
-        case 'S':
-            this.keys[0].material.color.set('#0000ff');
-            this.keys[1].material.color.set('#0000ff');
-            this.keys[2].material.color.set('#00ff00');
-            this.keys[3].material.color.set('#0000ff');
-            if (!w && !a && s && !d) {
+        case 2:
+            if (this.prevKeyState[2] == false && s) {
+                this.bird.children[1].rotation.x = -Math.PI;
                 this.sequence.pop();
-            } 
+                this.takeDamage(-1.5, true);
+                this.matImage.uniforms.u_length.value = new Int32Array(this.sequence.slice(-5)).reverse().length;
+                this.matImage.uniforms.u_keys.value = new Int32Array(this.sequence.slice(-5)).reverse();
+                this.matImage.uniforms.u_time.value = 0;
+            }
+            else if (this.prevKeyState[0] == false && a) {
+                this.bird.children[1].rotation.x = -Math.PI;
+                this.takeDamage(3, true);
+            }
+            else if (this.prevKeyState[1] == false && w) {
+                this.bird.children[1].rotation.x = -Math.PI;
+                this.takeDamage(3, true);
+            }
+            else if (this.prevKeyState[3] == false && d) {
+                this.bird.children[1].rotation.x = -Math.PI;
+                this.takeDamage(3, true);
+            }
             break;
-        case 'D':
-            this.keys[0].material.color.set('#0000ff');
-            this.keys[1].material.color.set('#0000ff');
-            this.keys[2].material.color.set('#0000ff');
-            this.keys[3].material.color.set('#00ff00');
-            if (!w && !a && !s && d) {
+        case 3:
+            if (this.prevKeyState[3] == false && d) {
+                this.bird.children[1].rotation.x = -Math.PI;
                 this.sequence.pop();
+                this.takeDamage(-1.5, true);
+                this.matImage.uniforms.u_length.value = new Int32Array(this.sequence.slice(-5)).reverse().length;
+                this.matImage.uniforms.u_keys.value = new Int32Array(this.sequence.slice(-5)).reverse();
+                this.matImage.uniforms.u_time.value = 0;
             } 
+            else if (this.prevKeyState[0] == false && a) {
+                this.bird.children[1].rotation.x = -Math.PI;
+                this.takeDamage(3, true);
+            }
+            else if (this.prevKeyState[1] == false && w) {
+                this.bird.children[1].rotation.x = -Math.PI;
+                this.takeDamage(3, true);
+            }
+            else if (this.prevKeyState[2] == false && s) {
+                this.bird.children[1].rotation.x = -Math.PI;
+                this.takeDamage(3, true);
+            }
             break;
     }
+    this.prevKeyState = [a,w,s,d];
     if (this.sequence.length == 0) {
-        this.takeDamage(-20);
+        this.takeDamage(-5, true);
+        this.bird.children[1].rotation.x = -3*Math.PI/4;
+        this.exitPeckGame();
+    }
+    if (e) {
+        this.bird.children[1].rotation.x = -3*Math.PI/4;
+        this.sequence = [];
         this.exitPeckGame();
     }
 }
@@ -316,15 +490,15 @@ Woodpecker.prototype.playPeckGame = function(a,d,w,s) {
 Woodpecker.prototype.exitPeckGame = function() {
     this.scene.remove(this.target);
     this.target = null;
-    this.scene.remove(this.keys[0]);
-    this.scene.remove(this.keys[1]);
-    this.scene.remove(this.keys[2]);
-    this.scene.remove(this.keys[3]);
-    this.keys = [];
     this.originalPos = this.goalPos;
     this.originalRot = this.goalRot;
+    this.modelOriginalPos = this.bird.children[1].position.clone();
+    this.modelOriginalRot = this.bird.children[1].rotation.clone();
+    this.modelGoalPos = new THREE.Vector3(0, -0.6, 0);
+    this.modelGoalRot = new THREE.Euler(0, Math.PI, 0);
     this.isInterpolating = true;
     this.startTime = new Date().getTime();
+    this.bird.remove(this.gamePlane);
     this.exitPecking = true;
 }
 
@@ -334,9 +508,55 @@ Woodpecker.prototype.updateHealthBar = function() {
     healthBar.style.width = healthPercentage + '%';
 }
 
-Woodpecker.prototype.takeDamage = function(amount) {
+Woodpecker.prototype.takeDamage = function(amount, isShowEffect) {
     this.health = Math.max(0, this.health - amount);
     this.updateHealthBar();
+    if (amount >= 0 && isShowEffect) {
+        this.matScreenPlane.uniforms.u_time.value = 0.0;
+    }
 }
 
+Woodpecker.prototype.renderGamePlane = function(deltaTime, renderer) {
+    this.scene.background = new THREE.Color(0x000000); 
+
+    this.matImage.uniforms.u_time.value = Math.min(0.1, this.matImage.uniforms.u_time.value + deltaTime);
+    this.scene.overrideMaterial = this.matImage;
+    renderer.setRenderTarget(this.imageBuffer);
+    renderer.clear();
+    renderer.render(this.scene, this.camera);
+
+    this.matBlurred.uniforms.u_image.value = this.imageBuffer.texture;
+    this.scene.overrideMaterial = this.matBlurred;
+    renderer.setRenderTarget(this.blurredImageBuffer);
+    renderer.clear();
+    renderer.render(this.scene, this.camera);
+
+    this.matFinal.uniforms.u_image.value = this.imageBuffer.texture;
+    this.matFinal.uniforms.u_blurImage.value = this.blurredImageBuffer.texture;
+    this.scene.overrideMaterial = null
+    renderer.setRenderTarget(null);
+    renderer.clear();
+
+    this.scene.background = new THREE.Color(0x87CEEB);
+}
+
+Woodpecker.prototype.levelAdjust = function(levelStage) {
+    switch(levelStage) {
+        case 0:
+            this.takeDamageInterval = 3000;
+            break;
+        case 1:
+            this.takeDamageInterval = 1500;
+            break;
+        case 2:
+            this.takeDamageInterval = 1000;
+            break;
+        case 3:
+            this.takeDamageInterval = 750;
+            break;
+        case 4:
+            this.takeDamageInterval = 600;
+            break;
+    }
+}
 export{Woodpecker};

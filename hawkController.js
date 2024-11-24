@@ -1,14 +1,14 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-const Hawk = function(scene, bird) {
-
+const Hawk = function(scene, bird, loadingManager) {
+    
     this.scene = scene;
     this.bird = bird;
 
     this.boss = new THREE.Mesh(new THREE.SphereGeometry(1.0, 32, 32), new THREE.MeshBasicMaterial({ color: 0xff0000, opacity: 0.0, transparent:true }));
-    this.boss.position.set(30, 12, 0);
-    const gltfLoader = new GLTFLoader(); 
+    this.boss.position.set(100, 12, 0);
+    const gltfLoader = new GLTFLoader(loadingManager); 
     gltfLoader.load('./assets/boss/scene.gltf', (gltf) => {
         this.bossModel = gltf.scene;
         this.mixer = new THREE.AnimationMixer(this.bossModel);
@@ -41,15 +41,15 @@ const Hawk = function(scene, bird) {
     this.leftDirection = new THREE.Vector3(0,0,0);
     this.rightDirection = new THREE.Vector3(0,0,0);
 
-    this.centerPoints = [];
-    this.centerPoints.push(this.boss.position.clone());
-    this.centerPoints.push(this.boss.position.clone().add(this.centerDirection.clone().multiplyScalar(200)));
-    this.centerGeo = new THREE.BufferGeometry().setFromPoints(this.centerPoints);
-    this.centerRayLine = new THREE.Line(this.centerGeo, new THREE.LineBasicMaterial({ color: 0xff0000 }));
-    this.scene.add(this.centerRayLine);
+    //this.centerPoints = [];
+    //this.centerPoints.push(this.boss.position.clone());
+    //this.centerPoints.push(this.boss.position.clone().add(this.centerDirection.clone().multiplyScalar(200)));
+    //this.centerGeo = new THREE.BufferGeometry().setFromPoints(this.centerPoints);
+    //this.centerRayLine = new THREE.Line(this.centerGeo, new THREE.LineBasicMaterial({ color: 0xff0000 }));
+    //this.scene.add(this.centerRayLine);
 
-    this.centerIntersect = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 32), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
-    scene.add(this.centerIntersect);
+    //this.centerIntersect = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 32), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+    //scene.add(this.centerIntersect);
 
 }
 
@@ -64,9 +64,9 @@ Hawk.prototype.update = function(deltaTime, chunkManager) {
         this.centerDirection.copy(this.bird.bird.position.clone().sub(this.boss.position).normalize());
         this.raycasterCenter.set(this.boss.position, this.centerDirection);
 
-        this.centerPoints[0].copy(this.boss.position.clone());
-        this.centerPoints[1].copy(this.boss.position.clone().add(this.centerDirection.clone().multiplyScalar(20000)));
-        this.centerGeo.setFromPoints(this.centerPoints);
+        //this.centerPoints[0].copy(this.boss.position.clone());
+        //this.centerPoints[1].copy(this.boss.position.clone().add(this.centerDirection.clone().multiplyScalar(20000)));
+        //this.centerGeo.setFromPoints(this.centerPoints);
 
         let objList = [];
         for (let i=0; i<chunkManager.chunkList.length; i++) {
@@ -77,8 +77,8 @@ Hawk.prototype.update = function(deltaTime, chunkManager) {
         
         let isDirect = false;
         // if there is intersection, and the intersection is in front of the bird, and the intersection is close to self so need avoidance (-1 for hiding in model)
-        if (intersects.length > 0 && intersects[0].distance < this.boss.position.distanceTo(this.bird.bird.position)-1 && intersects[0].distance < 50) { // has obstacle
-            this.centerIntersect.position.copy(intersects[0].point);
+        if (intersects.length > 0 && intersects[0].distance < this.boss.position.distanceTo(this.bird.bird.position)-2 && intersects[0].distance < 50) { // has obstacle
+            //this.centerIntersect.position.copy(intersects[0].point);
             this.leftDirection.copy(this.centerDirection);
             this.rightDirection.copy(this.centerDirection);
             while (true) {
@@ -99,7 +99,7 @@ Hawk.prototype.update = function(deltaTime, chunkManager) {
             }
         }
         else { // direct visibility
-            this.centerIntersect.position.copy(new THREE.Vector3(0,0,0));
+            //this.centerIntersect.position.copy(new THREE.Vector3(0,0,0));
             this.flightDirection.copy(this.centerDirection.normalize());
             isDirect = true;
         }
@@ -139,5 +139,25 @@ Hawk.prototype.updateRotation = function(deltaTime, isDirect) {
     pitchQuaternion.setFromEuler(new THREE.Euler(this.pitch, 0, 0));
     this.boss.rotation.setFromQuaternion(this.boss.quaternion.multiplyQuaternions(yawQuaternion, pitchQuaternion));
     
+}
+
+Hawk.prototype.levelAdjust = function(levelStage) {
+    switch(levelStage) {
+        case 0:
+            this.speed = 10;
+            break;
+        case 1:
+            this.speed = 12.5;
+            break;
+        case 2:
+            this.speed = 15;
+            break;
+        case 3:
+            this.speed = 17.5;
+            break;
+        case 4:
+            this.speed = 20;
+            break;
+    }
 }
 export {Hawk}
