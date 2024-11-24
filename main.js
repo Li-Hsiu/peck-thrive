@@ -228,7 +228,7 @@ function animate() {
             const deltaTime = (currentTime - lastTime) / 1000 || 0;
             lastTime = currentTime;
             totalDuration += deltaTime;
-            score += deltaTime * 100;
+            score += deltaTime * 100 * (levelStage+1);
 
             let birdMessage = woodpecker.update(keys.a, keys.d, keys.w, keys.s, keys.e, keys.space, deltaTime, renderer, listener);
             if (birdMessage == 'resumeSimulation') {
@@ -238,7 +238,7 @@ function animate() {
             
             document.querySelector(".label1").innerText = "Difficulty Level: " + (levelStage+1).toFixed(0);
             document.querySelector(".label2").innerText = "Score: " + score.toFixed(0);
-            document.querySelector(".label3").innerText = "Time: " + totalDuration.toFixed(1);
+            document.querySelector(".label3").innerText = "Survived: " + totalDuration.toFixed(1);
 
             directionalLight.position.copy(woodpecker.bird.position);
             directionalLight.position.y = 200;

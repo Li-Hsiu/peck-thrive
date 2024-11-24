@@ -10,6 +10,7 @@ const Woodpecker = function(camera, scene, loadingManager) {
     this.maxHealth = 100;
 
     this.soundInitialized = false;
+    this.notStartFlying = true;
 
     // load woodpecker model
     const birdGeometry = new THREE.SphereGeometry(0.25, 32, 32);
@@ -71,7 +72,7 @@ const Woodpecker = function(camera, scene, loadingManager) {
         transparent: true,
         depthWrite: false
     });
-    this.matImage.uniforms.u_time.value = 0;
+    this.matImage.uniforms.u_time.value = 0.1;
     this.matImage.uniforms.u_interval.value = 0.1;
     this.matImage.uniforms.u_textures.value.push(this.textureA, this.textureW, this.textureS, this.textureD);
     this.matImage.uniforms.u_keyTextures.value.push(this.textureAkey, this.textureWkey, this.textureSkey, this.textureDkey);
@@ -85,7 +86,7 @@ const Woodpecker = function(camera, scene, loadingManager) {
         depthWrite: false
     });
     this.blurredImageBuffer = new THREE.WebGLRenderTarget(1024, 1024, { format: THREE.RGBAFormat, type: THREE.UnsignedByteType });
-    this.matBlurred.uniforms.u_blurSize.value = 0.000;
+    this.matBlurred.uniforms.u_blurSize.value = 0.0005;
 
     this.shaderUniforms = THREE.UniformsUtils.clone(this.shader.finalUniforms);
     this.matFinal = new THREE.ShaderMaterial({
@@ -107,7 +108,7 @@ const Woodpecker = function(camera, scene, loadingManager) {
     });
     this.matScreenPlane.uniforms.u_effectDuration.value = 0.5;
     this.matScreenPlane.uniforms.u_time.value = this.matScreenPlane.uniforms.u_effectDuration.value;
-    this.screenPlane = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.0, 64, 64), this.matScreenPlane);
+    this.screenPlane = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 1.0, 64, 64), this.matScreenPlane);
     this.scene.add(this.screenPlane);
 
     // initialize parameters
@@ -152,6 +153,8 @@ const Woodpecker = function(camera, scene, loadingManager) {
     this.enterPecking = false;
     this.exitPecking = false;
 
+    this.levelStage = 0;
+
     this.sequence = [];
     this.keys = [];
     this.prevKeyState = [false, false, false, false];
@@ -162,7 +165,7 @@ const Woodpecker = function(camera, scene, loadingManager) {
 }
 
 Woodpecker.prototype.update = function(a, d, w, s, e, space, deltaTime, renderer, listener) {
-
+   
     if (!this.soundInitialized) {
         const audioLoader = new THREE.AudioLoader();
         this.aSoundEffect = new THREE.Audio(listener);
@@ -199,6 +202,10 @@ Woodpecker.prototype.update = function(a, d, w, s, e, space, deltaTime, renderer
             this.mixer.update(deltaTime); // Update animations
             this.mixer.timeScale = this.speed/7.5;
         }
+
+        if (space && this.notStartFlying) {
+            this.notStartFlying = false;
+        }    
 
         this.maxSpeed = 30 - (100-this.health)*0.3;
 
@@ -249,7 +256,7 @@ Woodpecker.prototype.update = function(a, d, w, s, e, space, deltaTime, renderer
             if (this.speed < this.maxSpeed) this.speed += this.maxSpeed * deltaTime * 0.5;
             else this.speed = this.maxSpeed;
 
-            this.bird.position.add(this.bird.getWorldDirection(new THREE.Vector3()).multiplyScalar(-1 * this.speed * deltaTime));
+            if (!this.notStartFlying) this.bird.position.add(this.bird.getWorldDirection(new THREE.Vector3()).multiplyScalar(-1 * this.speed * deltaTime));
             this.bird.__dirtyPosition = true;
             this.bird.material.color.set('#00FF00');
         }
@@ -425,7 +432,7 @@ Woodpecker.prototype.playPeckGame = function(a,d,w,s,e) {
                 this.aSoundEffect.play();
                 this.bird.children[1].rotation.x = -Math.PI;
                 this.sequence.pop();
-                this.takeDamage(-1.5, true);
+                this.takeDamage(-1.5 * (this.levelStage+1)/2, true);
                 this.matImage.uniforms.u_length.value = new Int32Array(this.sequence.slice(-5)).reverse().length;
                 this.matImage.uniforms.u_keys.value = new Int32Array(this.sequence.slice(-5)).reverse();    
                 this.matImage.uniforms.u_time.value = 0;
@@ -451,7 +458,7 @@ Woodpecker.prototype.playPeckGame = function(a,d,w,s,e) {
                 this.wSoundEffect.play();
                 this.bird.children[1].rotation.x = -Math.PI;
                 this.sequence.pop();
-                this.takeDamage(-1.5, true);
+                this.takeDamage(-1.5 * (this.levelStage+1)/2, true);
                 this.matImage.uniforms.u_length.value = new Int32Array(this.sequence.slice(-5)).reverse().length;
                 this.matImage.uniforms.u_keys.value = new Int32Array(this.sequence.slice(-5)).reverse();
                 this.matImage.uniforms.u_time.value = 0;
@@ -477,7 +484,7 @@ Woodpecker.prototype.playPeckGame = function(a,d,w,s,e) {
                 this.sSoundEffect.play();
                 this.bird.children[1].rotation.x = -Math.PI;
                 this.sequence.pop();
-                this.takeDamage(-1.5, true);
+                this.takeDamage(-1.5 * (this.levelStage+1)/2, true);
                 this.matImage.uniforms.u_length.value = new Int32Array(this.sequence.slice(-5)).reverse().length;
                 this.matImage.uniforms.u_keys.value = new Int32Array(this.sequence.slice(-5)).reverse();
                 this.matImage.uniforms.u_time.value = 0;
@@ -503,7 +510,7 @@ Woodpecker.prototype.playPeckGame = function(a,d,w,s,e) {
                 this.dSoundEffect.play();
                 this.bird.children[1].rotation.x = -Math.PI;
                 this.sequence.pop();
-                this.takeDamage(-1.5, true);
+                this.takeDamage(-1.5 * (this.levelStage+1)/2, true);
                 this.matImage.uniforms.u_length.value = new Int32Array(this.sequence.slice(-5)).reverse().length;
                 this.matImage.uniforms.u_keys.value = new Int32Array(this.sequence.slice(-5)).reverse();
                 this.matImage.uniforms.u_time.value = 0;
@@ -593,6 +600,7 @@ Woodpecker.prototype.renderGamePlane = function(deltaTime, renderer) {
 }
 
 Woodpecker.prototype.levelAdjust = function(levelStage) {
+    this.levelStage = levelStage;
     switch(levelStage) {
         case 0:
             this.takeDamageInterval = 3000;
