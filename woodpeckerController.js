@@ -51,7 +51,7 @@ const Woodpecker = function(camera, scene, loadingManager) {
         });
     });
 
-    this.textureLoader = new THREE.TextureLoader();
+    this.textureLoader = new THREE.TextureLoader(loadingManager);
     this.textureA = this.textureLoader.load('./assets/keys/aWorm.png');
     this.textureW = this.textureLoader.load('./assets/keys/wWorm.png');
     this.textureS = this.textureLoader.load('./assets/keys/sWorm.png');

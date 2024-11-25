@@ -3,7 +3,6 @@ import { Woodpecker } from './woodpeckerController.js';
 import { Hawk } from './hawkController.js';
 import { ChunkManager } from './chunkManager.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
-import { OutlineEffect } from 'three/addons/effects/OutlineEffect.js';
 
 Physijs.scripts.worker = 'physijs_worker.js';
 Physijs.scripts.ammo = 'ammo.js';
@@ -144,7 +143,7 @@ function init() {
         texture.mapping = THREE.EquirectangularRefractionMapping;
     });
 
-    timeStage = [60, 60, 60, 60, 60];
+    timeStage = [30, 60, 60, 60, 60];
     levelStage = 0;
 
     initKeys();

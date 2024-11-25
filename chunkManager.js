@@ -242,7 +242,7 @@ const ChunkManager = function(scene, loadingManager) {
 
     // target texture
     this.targetMaterial = null; 
-    const textureLoader = new THREE.TextureLoader();
+    const textureLoader = new THREE.TextureLoader(loadingManager);
     textureLoader.load('./assets/sound.png', (texture) => {
         this.targetMaterial = new THREE.MeshBasicMaterial({
             map: texture,
