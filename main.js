@@ -180,6 +180,7 @@ function init() {
             other.material.dispose();
             ChunkManager.timeStageBoolean = false;
             woodpecker.bird.setLinearVelocity(new THREE.Vector3(0, 0, 0));
+            woodpecker.takeDamage(-100, true);
             console.log("level up! " + levelStage);
             levelUp.play();
             score += levelStage / 2 * 10000;
