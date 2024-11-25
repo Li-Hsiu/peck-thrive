@@ -143,7 +143,7 @@ function init() {
         texture.mapping = THREE.EquirectangularRefractionMapping;
     });
 
-    timeStage = [30, 60, 60, 60, 60];
+    timeStage = [60, 60, 60, 60, 60];
     levelStage = 0;
 
     initKeys();
